@@ -1,0 +1,26 @@
+{
+  "name": "lazylink",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Chat with your Mac from anywhere: a secure, phone-friendly layer over opencode.",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "npm run dev -w @lazylink/server & npm run dev -w @lazylink/web",
+    "build": "npm run build -w @lazylink/web",
+    "start": "npm run start -w @lazylink/server",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "mac-tools": "tsx packages/mac-tools-mcp/src/index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.0"
+  }
+}

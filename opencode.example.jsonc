@@ -1,0 +1,101 @@
+// lazylink's opencode config. Copy to opencode.jsonc to customise (setup.sh does this for you).
+// lazylink renders ${LAZYLINK_ROOT}, ${LAZYLINK_MEDIA_DIR}, ${HOME} and ${CHROME_PORT} at startup and
+// passes the result to `opencode serve` via OPENCODE_CONFIG. It is merged with ~/.config/opencode.
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // Pick a default in the app or with LAZYLINK_MODEL instead; uncomment to pin one for opencode itself.
+  // "model": "opencode/nemotron-3-ultra-free",
+
+  // Free, local models via Ollama (`brew install ollama && ollama pull qwen3-coder:30b`).
+  // Pick a model that supports tool calling; small models struggle with multi-step tasks.
+  // "providers": {
+  //   "ollama": {
+  //     "name": "Ollama (local)",
+  //     "package": "@ai-sdk/openai-compatible",
+  //     "settings": { "baseURL": "http://localhost:11434/v1" },
+  //     "models": { "qwen3-coder:30b": { "name": "Qwen3 Coder 30B" } }
+  //   }
+  // },
+
+  "mcp": {
+    "servers": {
+      // Browser control through the agent's own Chrome profile (lazylink starts it with remote debugging).
+      "playwright": {
+        "type": "local",
+        "command": ["node", "${LAZYLINK_ROOT}/node_modules/@playwright/mcp/cli.js", "--cdp-endpoint", "http://127.0.0.1:${CHROME_PORT}"]
+      },
+      // macOS automation: screenshots, AppleScript/JXA, open apps, clipboard, notifications.
+      "macos": {
+        "type": "local",
+        "command": ["node", "${LAZYLINK_ROOT}/node_modules/tsx/dist/cli.mjs", "${LAZYLINK_ROOT}/packages/mac-tools-mcp/src/index.ts"],
+        "environment": { "LAZYLINK_MEDIA_DIR": "${LAZYLINK_MEDIA_DIR}" }
+      }
+    }
+  },
+
+  // Rules are evaluated in order and the LAST match wins. "ask" shows an approve/deny card in the app.
+  // Actions: read, edit, shell, grep, glob, webfetch, websearch, external_directory, and <mcp>_<tool>.
+  "permissions": [
+    { "action": "*", "resource": "*", "effect": "ask" },
+
+    // Looking around is free.
+    { "action": "read", "resource": "*", "effect": "allow" },
+    { "action": "grep", "resource": "*", "effect": "allow" },
+    { "action": "glob", "resource": "*", "effect": "allow" },
+    { "action": "webfetch", "resource": "*", "effect": "allow" },
+    { "action": "websearch", "resource": "*", "effect": "allow" },
+    { "action": "question", "resource": "*", "effect": "allow" },
+    { "action": "todowrite", "resource": "*", "effect": "allow" },
+    { "action": "external_directory", "resource": "${LAZYLINK_MEDIA_DIR}/*", "effect": "allow" },
+
+    // Read-only shell commands run without asking; everything else asks.
+    { "action": "shell", "resource": "ls*", "effect": "allow" },
+    { "action": "shell", "resource": "pwd", "effect": "allow" },
+    { "action": "shell", "resource": "cat *", "effect": "allow" },
+    { "action": "shell", "resource": "head *", "effect": "allow" },
+    { "action": "shell", "resource": "tail *", "effect": "allow" },
+    { "action": "shell", "resource": "wc *", "effect": "allow" },
+    { "action": "shell", "resource": "find *", "effect": "allow" },
+    { "action": "shell", "resource": "du *", "effect": "allow" },
+    { "action": "shell", "resource": "df *", "effect": "allow" },
+    { "action": "shell", "resource": "file *", "effect": "allow" },
+    { "action": "shell", "resource": "stat *", "effect": "allow" },
+    { "action": "shell", "resource": "mdfind *", "effect": "allow" },
+    { "action": "shell", "resource": "which *", "effect": "allow" },
+    { "action": "shell", "resource": "date", "effect": "allow" },
+    { "action": "shell", "resource": "git status*", "effect": "allow" },
+    { "action": "shell", "resource": "git log*", "effect": "allow" },
+    { "action": "shell", "resource": "git diff*", "effect": "allow" },
+
+    // Browser: looking is free, clicking/typing asks.
+    { "action": "playwright_browser_snapshot", "resource": "*", "effect": "allow" },
+    { "action": "playwright_browser_navigate", "resource": "*", "effect": "allow" },
+    { "action": "playwright_browser_take_screenshot", "resource": "*", "effect": "allow" },
+    { "action": "playwright_browser_tabs", "resource": "*", "effect": "allow" },
+    { "action": "playwright_browser_wait_for", "resource": "*", "effect": "allow" },
+
+    // macOS: observing is free, acting asks.
+    { "action": "macos_screenshot", "resource": "*", "effect": "allow" },
+    { "action": "macos_list_apps", "resource": "*", "effect": "allow" },
+    { "action": "macos_system_info", "resource": "*", "effect": "allow" },
+    { "action": "macos_notify", "resource": "*", "effect": "allow" },
+
+    // Hard denies: never, not even with auto-approve on.
+    { "action": "shell", "resource": "sudo *", "effect": "deny" },
+    { "action": "shell", "resource": "*sudo *", "effect": "deny" },
+    { "action": "shell", "resource": "rm -rf /*", "effect": "deny" },
+    { "action": "shell", "resource": "*.ssh*", "effect": "deny" },
+    { "action": "shell", "resource": "*Keychains*", "effect": "deny" },
+    { "action": "shell", "resource": "*security *-password*", "effect": "deny" },
+    { "action": "read", "resource": "${HOME}/.ssh/*", "effect": "deny" },
+    { "action": "read", "resource": "${HOME}/Library/Keychains/*", "effect": "deny" },
+    { "action": "read", "resource": "${HOME}/Library/Application Support/zen/*", "effect": "deny" },
+    { "action": "read", "resource": "${HOME}/.lazylink/*.secret", "effect": "deny" },
+    { "action": "read", "resource": "${HOME}/.lazylink/opencode.password", "effect": "deny" },
+    { "action": "edit", "resource": "${HOME}/.ssh/*", "effect": "deny" },
+    { "action": "edit", "resource": "${HOME}/Library/Keychains/*", "effect": "deny" },
+    { "action": "edit", "resource": "${HOME}/Library/Application Support/zen/*", "effect": "deny" },
+    { "action": "edit", "resource": "${HOME}/.lazylink/*", "effect": "deny" }
+  ]
+}
