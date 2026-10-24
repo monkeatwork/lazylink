@@ -13,3 +13,10 @@
 - **Files:** scripts/setup.sh, docs/CHANGELOG.md
 - **Known issues:** Same as above.
 - **Next:** Install Tailscale and run `tailscale serve --bg 8787`.
+
+## 2026-10-24 — Tailscale app support
+- **What:** setup.sh finds the CLI bundled in the Tailscale Mac app. The README documents the app CLI path and the one-time "enable Serve" link. `LAZYLINK_ALLOWED_USERS` is set locally (in `.env`, not committed).
+- **Why:** The Tailscale GUI app doesn't put `tailscale` on PATH, and Serve/HTTPS has to be enabled once per tailnet.
+- **Files:** scripts/setup.sh, README.md, docs/CHANGELOG.md
+- **Known issues:** Serve isn't enabled on the tailnet yet; that needs an admin-console click.
+- **Next:** Enable Serve, run `serve --bg 8787`, then install the PWA on the phone.

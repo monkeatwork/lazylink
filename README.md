@@ -26,7 +26,7 @@ scripts/install-launchd.sh      # optional: run in the background and start at l
 Phone access (private; nothing is exposed to the internet):
 
 1. Install [Tailscale](https://tailscale.com) on the Mac and on your phone, signed in to the same account.
-2. On the Mac, run `tailscale serve --bg 8787`.
+2. On the Mac, run `tailscale serve --bg 8787`. If you have the Tailscale app rather than the CLI, the command is `/Applications/Tailscale.app/Contents/MacOS/Tailscale serve --bg 8787`. You can add `alias tailscale=/Applications/Tailscale.app/Contents/MacOS/Tailscale` to `~/.zshrc`. The first time, it prints a link that turns on Serve/HTTPS for your tailnet. Open it, then run the command again.
 3. On your phone, open `https://<mac-name>.<tailnet>.ts.net`, then use **Add to Home Screen**.
 4. Add your Tailscale login to `LAZYLINK_ALLOWED_USERS` in `.env`.
 

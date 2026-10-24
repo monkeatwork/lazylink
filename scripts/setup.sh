@@ -23,6 +23,11 @@ fi
 echo "→ Building the web app"
 npm run build
 
+# The Tailscale Mac app bundles its CLI; the Homebrew/standalone install puts it on PATH.
+TS=$(command -v tailscale || true)
+[ -z "$TS" ] && [ -x /Applications/Tailscale.app/Contents/MacOS/Tailscale ] && TS=/Applications/Tailscale.app/Contents/MacOS/Tailscale
+TS=${TS:-tailscale}
+
 cat <<MSG
 
 ✓ lazylink is ready.
@@ -32,7 +37,8 @@ cat <<MSG
 
   Reach it from your phone (private, no public ports):
     1. Install Tailscale on the Mac and your phone, sign in to both with the same account.
-    2. On the Mac:   tailscale serve --bg 8787
+    2. On the Mac:   "$TS" serve --bg 8787
+       (first time: it prints a link to enable Serve/HTTPS for your tailnet; open it, then re-run)
     3. On the phone: open https://<mac-name>.<tailnet>.ts.net, then "Add to Home Screen".
     4. Put your Tailscale login in LAZYLINK_ALLOWED_USERS in .env.
 
