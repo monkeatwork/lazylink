@@ -1,7 +1,8 @@
 import DOMPurify from "dompurify";
 import { marked } from "marked";
 import { memo, useMemo, useState } from "react";
-import { mediaUrls, type Msg, type Part } from "../transcript.ts";
+import { fileLinks, mediaUrls, type Msg, type Part } from "../transcript.ts";
+import { FileCards } from "./FileCard.tsx";
 
 marked.setOptions({ gfm: true, breaks: true });
 
@@ -29,12 +30,29 @@ function summarize(name: string, input: any): string {
   if (!input || typeof input !== "object") return "";
   if (typeof input.command === "string") return input.command;
   if (typeof input.code === "string") {
-    const calls = [...input.code.matchAll(/tools\.(\w+)\[?["']?(\w+)?/g)].map((m) => (m[2] ? `${m[1]}.${m[2]}` : m[1]));
+    // opencode "code mode": MCP tools are called as tools.<server>.<tool>(...) or tools.<server>["<tool>"](...)
+    const calls = [...input.code.matchAll(/tools\.(\w+)(?:\.(\w+)|\[["'](\w+)["']\])?/g)].map((m) => {
+      const key = m[2] || m[3] ? `${m[1]}.${m[2] ?? m[3]}` : m[1];
+      return MCP_LABEL[key] ?? key;
+    });
     return calls.length ? [...new Set(calls)].join(", ") : input.code.split("\n")[0];
   }
   for (const k of ["filePath", "path", "pattern", "url", "query", "target"]) if (typeof input[k] === "string") return input[k];
   return name === "execute" ? "" : JSON.stringify(input).slice(0, 120);
 }
+
+export const MCP_LABEL: Record<string, string> = {
+  "lazylink.share_file": "Send file to phone",
+  "lazylink.list_inbox": "Check inbox",
+  "lazylink.remember": "Remember",
+  "lazylink.forget": "Forget",
+  "lazylink.notify_phone": "Notify phone",
+  "macos.screenshot": "Screenshot",
+  "macos.run_script": "AppleScript",
+  "macos.open": "Open",
+  "macos.list_apps": "Running apps",
+  "macos.system_info": "System info",
+};
 
 const TOOL_LABEL: Record<string, string> = {
   shell: "Shell",
@@ -70,6 +88,7 @@ function ToolCard({ part }: { part: Extract<Part, { kind: "tool" }> }) {
         </div>
       )}
       <Media text={part.output} />
+      <FileCards text={part.output} />
     </div>
   );
 }
@@ -88,6 +107,8 @@ function Reasoning({ part }: { part: Extract<Part, { kind: "reasoning" }> }) {
 export const Message = memo(function Message({ msg }: { msg: Msg }) {
   if (msg.role === "user") return <div className="msg user">{msg.text}</div>;
   if (msg.role === "system") return <div className="msg system">{msg.text}</div>;
+  // Files already shown as cards under a tool call aren't repeated under the reply text.
+  const shownByTools = new Set(msg.parts.flatMap((p) => (p.kind === "tool" ? fileLinks(p.output).map((f) => f.url) : [])));
   return (
     <div className="msg assistant">
       {msg.parts.map((p) =>
@@ -95,6 +116,7 @@ export const Message = memo(function Message({ msg }: { msg: Msg }) {
           <div key={p.key}>
             <Markdown text={p.text} />
             <Media text={p.text} />
+            <FileCards text={p.text} exclude={shownByTools} />
           </div>
         ) : p.kind === "reasoning" ? (
           <Reasoning key={p.key} part={p} />

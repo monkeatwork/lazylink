@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { api, subscribe, type ModelInfo, type ModelRef, type PermissionRequest, type SessionInfo, type Status } from "./api.ts";
+import { api, subscribe, type AuditEntry, type ModelInfo, type ModelRef, type PermissionRequest, type SessionInfo, type Status } from "./api.ts";
+import { Activity } from "./components/Activity.tsx";
 import { Composer } from "./components/Composer.tsx";
+import { QuickActions } from "./components/QuickActions.tsx";
+import { Settings, type InstallPrompt } from "./components/Settings.tsx";
 import { Login } from "./components/Login.tsx";
 import { Message } from "./components/Messages.tsx";
 import { PermissionCard } from "./components/PermissionCard.tsx";
@@ -31,11 +34,39 @@ const parseModelKey = (k: string): ModelRef | undefined => {
   return i > 0 ? { providerID: k.slice(0, i), id: k.slice(i + 1) } : undefined;
 };
 
+/** Deep links: ?session=<id> (from notifications), ?view=activity (shortcut), ?shared=1 (Android share sheet). */
+const launchParams = new URLSearchParams(location.search);
+if (launchParams.get("session")) store.set("lazylink:session", launchParams.get("session"));
+if (launchParams.get("new")) store.set("lazylink:session", null);
+// Text or a link shared from another app goes into the composer.
+if (launchParams.get("text")) store.set("lazylink:draft", launchParams.get("text"));
+if (location.search) history.replaceState(null, "", "/");
+
+/** Files the service worker stashed from the Android share sheet. */
+async function takeSharedFiles(): Promise<File[]> {
+  try {
+    const cache = await caches.open("lazylink-share");
+    const keys = await cache.keys();
+    const files: File[] = [];
+    for (const req of keys) {
+      const res = await cache.match(req);
+      if (res) {
+        const name = decodeURIComponent(res.headers.get("x-file-name") ?? "shared-file");
+        files.push(new File([await res.blob()], name, { type: res.headers.get("content-type") ?? "" }));
+      }
+      await cache.delete(req);
+    }
+    return files;
+  } catch {
+    return [];
+  }
+}
+
 const SUGGESTIONS = [
   "What are the 10 biggest files in my Downloads folder?",
   "Take a screenshot and tell me what's on my screen",
   "Open github.com in the agent browser and show me my notifications",
-  "Which apps are running right now?",
+  "Send me the newest PDF from my Downloads",
 ];
 
 export function App() {
@@ -50,6 +81,16 @@ export function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pickedModel, setPickedModel] = useState(() => store.get("lazylink:model") ?? "");
   const [toast, setToast] = useState<string>();
+  const [view, setView] = useState<"chat" | "activity">(launchParams.get("view") === "activity" ? "activity" : "chat");
+  const [quickOpen, setQuickOpen] = useState(launchParams.get("action") === "quick");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<InstallPrompt | null>(null);
+  const [incoming, setIncoming] = useState<File[]>([]);
+  const auditListeners = useRef(new Set<(e: AuditEntry) => void>());
+  const subscribeAudit = useCallback((fn: (e: AuditEntry) => void) => {
+    auditListeners.current.add(fn);
+    return () => void auditListeners.current.delete(fn);
+  }, []);
 
   const currentRef = useRef(currentId);
   currentRef.current = currentId;
@@ -119,6 +160,7 @@ export function App() {
         else if (type === "lazylink.auto-approve")
           setSessions((ss) => ss.map((s) => (s.id === data.sessionID ? { ...s, autoApprove: data.enabled } : s)));
         else if (type === "lazylink.status") void loadStatus();
+        else if (type === "lazylink.audit") auditListeners.current.forEach((l) => l(data));
 
         if (data?.sessionID && data.sessionID === currentRef.current) {
           setTranscript((t) => applyEvent(t, type, data));
@@ -139,6 +181,38 @@ export function App() {
       unsubscribe();
     };
   }, [auth, refreshAll, loadStatus, loadSessions, loadMessages]);
+
+  // ---------- app shell: install prompt, share sheet, presence ----------
+
+  useEffect(() => {
+    const onPrompt = (e: Event) => (e.preventDefault(), setInstallPrompt(e as InstallPrompt));
+    const onInstalled = () => setInstallPrompt(null);
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (auth !== "ok" || launchParams.get("shared") !== "1") return;
+    launchParams.delete("shared");
+    void takeSharedFiles().then((files) => files.length && (setView("chat"), setIncoming(files)));
+  }, [auth]);
+
+  // While the app is on screen, tell the Mac so it doesn't send push notifications we're already looking at.
+  useEffect(() => {
+    if (auth !== "ok") return;
+    const ping = () => document.visibilityState === "visible" && void api.presence();
+    ping();
+    const timer = setInterval(ping, 20_000);
+    document.addEventListener("visibilitychange", ping);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", ping);
+    };
+  }, [auth]);
 
   // ---------- current session ----------
 
@@ -169,7 +243,7 @@ export function App() {
     return s.id;
   });
 
-  const send = async (text: string) => {
+  const send = async (text: string, files: string[] = []) => {
     let id = currentId;
     if (!id) {
       const s = await api.createSession(parseModelKey(activeModel)).catch((e) => (flash(e.message), Promise.reject(e)));
@@ -185,7 +259,7 @@ export function App() {
       notice: undefined,
       messages: [...t.messages, { id: `local:${Date.now()}`, role: "user", text, time: Date.now() }],
     }));
-    await guard(api.prompt)(id, text);
+    await guard(api.prompt)(id, text, files);
   };
 
   const changeModel = guard(async (key: string) => {
@@ -222,9 +296,14 @@ export function App() {
         connected={connected}
         onSelect={(id) => {
           setCurrentId(id);
+          setView("chat");
           setSidebarOpen(false);
         }}
-        onNew={() => void newSession().catch(() => {})}
+        onNew={() => (setView("chat"), void newSession().catch(() => {}))}
+        view={view}
+        onActivity={() => (setView("activity"), setSidebarOpen(false))}
+        onSettings={() => (setSettingsOpen(true), setSidebarOpen(false))}
+        installable={!!installPrompt}
         onDelete={(id) =>
           void guard(api.deleteSession)(id)
             .then(() => {
@@ -248,7 +327,8 @@ export function App() {
           <button className="icon-btn menu" onClick={() => setSidebarOpen(true)} aria-label="Conversations">
             ☰
           </button>
-          <div className="title">{current?.title ?? (currentId ? "Conversation" : "New conversation")}</div>
+          <div className="title">{view === "activity" ? "Activity" : (current?.title ?? (currentId ? "Conversation" : "New conversation"))}</div>
+          {view === "chat" && (<>
           <select className="model-select" value={activeModel} onChange={(e) => void changeModel(e.target.value).catch(() => {})}>
             {!models.some((m) => modelKey(m) === activeModel) && <option value={activeModel}>{activeModel || "Pick a model"}</option>}
             {free.length > 0 && (
@@ -279,7 +359,18 @@ export function App() {
               {current.autoApprove ? "auto ✓" : "ask"}
             </button>
           )}
+          </>)}
         </header>
+
+        {view === "activity" ? (
+          <Activity
+            sessions={sessions}
+            currentId={currentId}
+            subscribeAudit={subscribeAudit}
+            onBack={() => setView("chat")}
+            onOpenSession={(id) => (setCurrentId(id), setView("chat"))}
+          />
+        ) : (<>
 
         <div
           className="scroller"
@@ -327,10 +418,30 @@ export function App() {
         <Composer
           busy={transcript.busy}
           disabled={!connected}
+          incoming={incoming}
+          onIncomingConsumed={() => setIncoming([])}
           onSend={send}
           onStop={() => currentId && void guard(api.interrupt)(currentId).catch(() => {})}
+          onQuick={() => setQuickOpen(true)}
+          onError={flash}
         />
+        </>)}
       </main>
+
+      <QuickActions
+        open={quickOpen}
+        keepAwake={!!status?.keepAwake}
+        onClose={() => setQuickOpen(false)}
+        onKeepAwake={(on) => setStatus((s) => (s ? { ...s, keepAwake: on } : s))}
+        onError={flash}
+      />
+      <Settings
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        installPrompt={installPrompt}
+        onInstalled={() => setInstallPrompt(null)}
+        onError={flash}
+      />
 
       {toast && <div className="toast">{toast}</div>}
     </div>

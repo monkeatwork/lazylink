@@ -20,3 +20,31 @@
 - **Files:** scripts/setup.sh, README.md, docs/CHANGELOG.md
 - **Known issues:** Serve isn't enabled on the tailnet yet; that needs an admin-console click.
 - **Next:** Enable Serve, run `serve --bg 8787`, then install the PWA on the phone.
+
+## 2026-10-24 — Round 2: agent context, files both ways, push, quick actions, Activity, app-grade PWA
+- **What:**
+  - **Agent context.** `agent/LAZYLINK.md` is the operating manual: the user is remote on their phone, send files with `share_file`, uploads arrive in `~/lazylink-inbox`. Also an editable profile and agent memory (opencode `instructions`), plus live per-session context: time, device and the latest memory.
+  - **lazylink MCP server** at `/mcp` (bearer token) with `share_file`, `list_inbox`, `remember`, `forget` and `notify_phone`.
+  - **Downloads.** Expiring, login-protected links at `/files/<token>/<name>` (folders zipped, deny-list enforced) and download cards in chat.
+  - **Uploads** from the phone: the 📎 button and the Android share sheet (`share_target` + service worker).
+  - **Web Push.** VAPID keys, subscriptions, pushes for approvals and finished or failed tasks, suppressed while the app is on screen.
+  - **Quick actions.** Screenshot, status, lock, play/pause, volume and keep-awake, with no model involved.
+  - **Activity screen.** Filterable, day-grouped, live audit timeline.
+  - **Settings.** Install the app, notifications, and the profile and memory editors.
+  - **Installable PWA.** Maskable and monochrome icons, shortcuts, screenshots, `share_target`, deep links.
+  - **Permissions.** `~/.lazylink` is 0700 and its files 0600. The agent is denied read, edit and shell access to lazylink's data dir (except screenshots).
+  - Shared macOS helpers in `packages/mac-tools-mcp/src/mac.ts`. A clear error when Screen Recording permission is missing. `LAZYLINK_DATA_DIR` in `.env` now works.
+- **Why:** The agent assumed the user was at the Mac and couldn't deliver files. The audit log had no UI and was world-readable. Running in a Chrome tab felt unlike an app.
+- **Files:** agent/*, apps/server/src/{index,config,audit,opencode,db,mcp,paths,push,quick,shares}.ts, apps/web/src/{App,api,push,transcript}.ts(x), apps/web/src/components/{Activity,Composer,FileCard,Messages,QuickActions,Settings,Sheet,Sidebar}.tsx, apps/web/public/*, packages/mac-tools-mcp/src/{index,mac}.ts, opencode.example.jsonc, README.md, scripts/install-launchd.sh
+- **Verified:**
+  - File modes. `/mcp` returns 401 without the token.
+  - `share_file` on a file and a folder works; `~/.ssh` and lazylink data are refused.
+  - Download returns 200 with login, 401 without, 410 when expired, 404 for a bad token. Uploads de-duplicate names.
+  - Audit filters, the `before` cursor, and live updates. Context and memory APIs. Quick actions: status and keep-awake.
+  - A free model used `share_file` for "send me the report" and answered setup and memory questions correctly.
+  - UI flows at 390×844 in headless Chrome. The service worker registers, and the manifest has maskable icons, `share_target` and shortcuts.
+- **Known issues:**
+  - Push hasn't been verified on a real phone yet.
+  - Screenshots need the Screen Recording permission on the Mac.
+  - Shared text from other apps prefills the composer, but shared files only arrive once the service worker is active (after the first open of the installed app).
+- **Next:** Install as an app on the phone, enable notifications and run the test push. Later: TWA/Capacitor APK, browser screenshots in chat, a web terminal, scheduled tasks.

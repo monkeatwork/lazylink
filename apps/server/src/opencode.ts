@@ -2,7 +2,7 @@
 // The installed opencode (v2.x) exposes an experimental /api/* surface that is ahead of the
 // published @opencode-ai/sdk, so we use a tiny typed fetch client for the handful of routes we need.
 import { spawn, type ChildProcess } from "node:child_process";
-import { createWriteStream, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, createWriteStream, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { config, DATA_DIR, HOME, MEDIA_DIR, ROOT } from "./config.ts";
 
@@ -40,12 +40,16 @@ function writeOpencodeConfig(): string {
   const vars: Record<string, string> = {
     LAZYLINK_ROOT: ROOT,
     LAZYLINK_MEDIA_DIR: MEDIA_DIR,
+    LAZYLINK_DATA_DIR: DATA_DIR,
+    LAZYLINK_PORT: String(config.port),
+    LAZYLINK_MCP_TOKEN: config.mcpToken,
     HOME,
     CHROME_PORT: String(config.chrome.port),
   };
   const rendered = readFileSync(source, "utf8").replace(/\$\{(\w+)\}/g, (m, name) => vars[name] ?? m);
   const target = join(DATA_DIR, "opencode.jsonc");
-  writeFileSync(target, rendered);
+  writeFileSync(target, rendered, { mode: 0o600 });
+  chmodSync(target, 0o600); // contains the MCP bearer token
   return target;
 }
 
@@ -58,7 +62,9 @@ export function startOpencode() {
     return;
   }
   const configFile = writeOpencodeConfig();
-  const log = createWriteStream(join(DATA_DIR, "opencode.log"), { flags: "a" });
+  const logFile = join(DATA_DIR, "opencode.log");
+  const log = createWriteStream(logFile, { flags: "a", mode: 0o600 });
+  if (existsSync(logFile)) chmodSync(logFile, 0o600);
   let backoff = 1000;
 
   const launch = () => {
@@ -142,4 +148,17 @@ export function subscribeEvents(onEvent: (e: OpencodeEvent) => void, onStatus: (
     }
   };
   void loop();
+}
+
+/**
+ * Per-session context that changes over time (date, device, latest memory). opencode's instruction files are
+ * read once, so this keeps memory edits effective immediately. Uses an experimental opencode route; failures
+ * are non-fatal because the static instruction files already carry the essentials.
+ */
+export async function setSessionContext(sessionId: string, text: string) {
+  try {
+    await oc(`/api/experimental/session/${sessionId}/instructions/entries/lazylink-session`, { method: "PUT", body: { value: text } });
+  } catch (err) {
+    console.warn("[opencode] could not set session context:", (err as Error).message.slice(0, 200));
+  }
 }

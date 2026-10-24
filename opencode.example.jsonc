@@ -1,5 +1,6 @@
 // lazylink's opencode config. Copy to opencode.jsonc to customise (setup.sh does this for you).
-// lazylink renders ${LAZYLINK_ROOT}, ${LAZYLINK_MEDIA_DIR}, ${HOME} and ${CHROME_PORT} at startup and
+// lazylink renders ${LAZYLINK_ROOT}, ${LAZYLINK_DATA_DIR}, ${LAZYLINK_MEDIA_DIR}, ${LAZYLINK_PORT},
+// ${LAZYLINK_MCP_TOKEN}, ${HOME} and ${CHROME_PORT} at startup and
 // passes the result to `opencode serve` via OPENCODE_CONFIG. It is merged with ~/.config/opencode.
 {
   "$schema": "https://opencode.ai/config.json",
@@ -18,8 +19,22 @@
   //   }
   // },
 
+  // What the agent knows about this setup: the lazylink manual, your profile, and its memory.
+  // Edit your profile and memory in the app (Settings).
+  "instructions": [
+    "${LAZYLINK_ROOT}/agent/LAZYLINK.md",
+    "${LAZYLINK_DATA_DIR}/profile.md",
+    "${LAZYLINK_DATA_DIR}/memory.md"
+  ],
+
   "mcp": {
     "servers": {
+      // lazylink's own tools: share_file (send files to your phone), list_inbox, remember/forget, notify_phone.
+      "lazylink": {
+        "type": "remote",
+        "url": "http://127.0.0.1:${LAZYLINK_PORT}/mcp",
+        "headers": { "Authorization": "Bearer ${LAZYLINK_MCP_TOKEN}" }
+      },
       // Browser control through the agent's own Chrome profile (lazylink starts it with remote debugging).
       "playwright": {
         "type": "local",
@@ -68,6 +83,14 @@
     { "action": "shell", "resource": "git log*", "effect": "allow" },
     { "action": "shell", "resource": "git diff*", "effect": "allow" },
 
+    // lazylink tools. share_file enforces its own deny-list (SSH keys, Keychains, browser profile, secrets).
+    { "action": "lazylink_share_file", "resource": "*", "effect": "allow" },
+    { "action": "lazylink_list_inbox", "resource": "*", "effect": "allow" },
+    { "action": "lazylink_remember", "resource": "*", "effect": "allow" },
+    { "action": "lazylink_forget", "resource": "*", "effect": "allow" },
+    { "action": "lazylink_notify_phone", "resource": "*", "effect": "allow" },
+    { "action": "external_directory", "resource": "${HOME}/lazylink-inbox/*", "effect": "allow" },
+
     // Browser: looking is free, clicking/typing asks.
     { "action": "playwright_browser_snapshot", "resource": "*", "effect": "allow" },
     { "action": "playwright_browser_navigate", "resource": "*", "effect": "allow" },
@@ -91,11 +114,15 @@
     { "action": "read", "resource": "${HOME}/.ssh/*", "effect": "deny" },
     { "action": "read", "resource": "${HOME}/Library/Keychains/*", "effect": "deny" },
     { "action": "read", "resource": "${HOME}/Library/Application Support/zen/*", "effect": "deny" },
-    { "action": "read", "resource": "${HOME}/.lazylink/*.secret", "effect": "deny" },
-    { "action": "read", "resource": "${HOME}/.lazylink/opencode.password", "effect": "deny" },
+    // lazylink's own data: secrets, MCP token, push keys, audit log, the agent Chrome profile.
+    { "action": "read", "resource": "${LAZYLINK_DATA_DIR}/*", "effect": "deny" },
+    { "action": "shell", "resource": "*.lazylink/*", "effect": "deny" },
+    { "action": "shell", "resource": "*${LAZYLINK_DATA_DIR}*", "effect": "deny" },
+    // ...except screenshots, which the agent produces and shows you.
+    { "action": "read", "resource": "${LAZYLINK_MEDIA_DIR}/*", "effect": "allow" },
     { "action": "edit", "resource": "${HOME}/.ssh/*", "effect": "deny" },
     { "action": "edit", "resource": "${HOME}/Library/Keychains/*", "effect": "deny" },
     { "action": "edit", "resource": "${HOME}/Library/Application Support/zen/*", "effect": "deny" },
-    { "action": "edit", "resource": "${HOME}/.lazylink/*", "effect": "deny" }
+    { "action": "edit", "resource": "${LAZYLINK_DATA_DIR}/*", "effect": "deny" }
   ]
 }

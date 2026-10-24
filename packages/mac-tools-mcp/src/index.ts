@@ -1,36 +1,11 @@
 #!/usr/bin/env -S npx tsx
 // lazylink mac-tools: a small stdio MCP server that gives an agent macOS superpowers.
 // It is harness-agnostic: opencode, Claude Code, Cursor, etc. can all load it.
-import { execFile } from "node:child_process";
-import { mkdir, readFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import { join } from "node:path";
-import { promisify } from "node:util";
+import { readFile } from "node:fs/promises";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-
-const run = promisify(execFile);
-const MEDIA_DIR = process.env.LAZYLINK_MEDIA_DIR ?? join(homedir(), ".lazylink", "media");
-const TIMEOUT_MS = 30_000;
-
-async function sh(cmd: string, args: string[], input?: string): Promise<string> {
-  if (input === undefined) {
-    const { stdout } = await run(cmd, args, { timeout: TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 });
-    return stdout.trimEnd();
-  }
-  return new Promise((resolve, reject) => {
-    const child = execFile(cmd, args, { timeout: TIMEOUT_MS }, (err, stdout) =>
-      err ? reject(err) : resolve(stdout.trimEnd()),
-    );
-    child.stdin?.end(input);
-  });
-}
-
-function osascript(script: string, language: "applescript" | "javascript" = "applescript") {
-  const args = language === "javascript" ? ["-l", "JavaScript", "-e", script] : ["-e", script];
-  return sh("osascript", args);
-}
+import { osascript, screenshot, sh, systemInfo } from "./mac.ts";
 
 const text = (t: string) => ({ content: [{ type: "text" as const, text: t || "(no output)" }] });
 
@@ -53,20 +28,7 @@ server.registerTool(
   },
   async ({ display, window }) => {
     try {
-      await mkdir(MEDIA_DIR, { recursive: true });
-      const file = join(MEDIA_DIR, `screenshot-${Date.now()}.png`);
-      const args = ["-x", "-t", "png"];
-      if (display) args.push("-D", String(display));
-      if (window) {
-        const id = await osascript(
-          'tell application "System Events" to get id of first window of (first process whose frontmost is true)',
-        ).catch(() => "");
-        if (id) args.push("-l", id);
-      }
-      await sh("screencapture", [...args, file]);
-      // Downscale a copy for the model so screenshots don't blow the context window.
-      const small = file.replace(/\.png$/, ".small.png");
-      await sh("sips", ["-Z", "1440", file, "--out", small]);
+      const { file, small } = await screenshot({ display, window });
       const data = (await readFile(small)).toString("base64");
       return {
         content: [
@@ -197,15 +159,7 @@ server.registerTool(
     description: "Battery, uptime, disk usage, macOS version and the current Wi-Fi/network state.",
     inputSchema: {},
   },
-  async () => {
-    const parts = await Promise.all([
-      sh("sw_vers", []).catch(() => ""),
-      sh("uptime", []).catch(() => ""),
-      sh("pmset", ["-g", "batt"]).catch(() => ""),
-      sh("df", ["-h", "/"]).catch(() => ""),
-    ]);
-    return text(parts.filter(Boolean).join("\n\n"));
-  },
+  async () => text(await systemInfo()),
 );
 
 await server.connect(new StdioServerTransport());

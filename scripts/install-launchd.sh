@@ -6,6 +6,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 NODE="$(command -v node)"
 PLIST="$HOME/Library/LaunchAgents/com.lazylink.server.plist"
 mkdir -p "$HOME/Library/LaunchAgents" "$HOME/.lazylink"
+chmod 700 "$HOME/.lazylink"
+touch "$HOME/.lazylink/server.log" && chmod 600 "$HOME/.lazylink/server.log"
 
 cat > "$PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

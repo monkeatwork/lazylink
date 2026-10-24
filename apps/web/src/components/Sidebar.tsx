@@ -12,6 +12,10 @@ type Props = {
   onStartChrome: () => void;
   onLogout: () => void;
   onClose: () => void;
+  view: "chat" | "activity";
+  onActivity: () => void;
+  onSettings: () => void;
+  installable: boolean;
 };
 
 function ago(ts: number) {
@@ -43,7 +47,7 @@ export function Sidebar(p: Props) {
           {p.sessions.map((s) => (
             <div
               key={s.id}
-              className={`session-item ${s.id === p.currentId ? "active" : ""}`}
+              className={`session-item ${s.id === p.currentId && p.view === "chat" ? "active" : ""}`}
               onClick={() => p.onSelect(s.id)}
             >
               <div className="session-title">{s.title ?? "Untitled"}</div>
@@ -64,6 +68,15 @@ export function Sidebar(p: Props) {
             </div>
           ))}
         </nav>
+
+        <div className="sidebar-nav">
+          <button className={`nav-item ${p.view === "activity" ? "active" : ""}`} onClick={p.onActivity}>
+            <span>☰</span> Activity
+          </button>
+          <button className="nav-item" onClick={p.onSettings}>
+            <span>⚙</span> Settings{p.installable && <span className="badge">Install</span>}
+          </button>
+        </div>
 
         <div className="sidebar-foot">
           <div className="status-row">

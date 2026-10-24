@@ -14,5 +14,9 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
     "zod": "^4.6.5"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./mac": "./src/mac.ts"
   }
 }

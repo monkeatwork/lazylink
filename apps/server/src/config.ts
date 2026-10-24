@@ -1,16 +1,29 @@
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 export const HOME = homedir();
+loadDotEnv(join(ROOT, ".env"));
+
 export const DATA_DIR = process.env.LAZYLINK_DATA_DIR ?? join(HOME, ".lazylink");
 export const MEDIA_DIR = join(DATA_DIR, "media");
-mkdirSync(MEDIA_DIR, { recursive: true });
+/** Files sent from the phone land here, one folder per day. */
+export const INBOX_DIR = process.env.LAZYLINK_INBOX_DIR ?? join(HOME, "lazylink-inbox");
+// Everything in DATA_DIR (audit log, secrets, screenshots, the agent's Chrome profile) is private to this user.
+for (const dir of [DATA_DIR, MEDIA_DIR]) {
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  chmodSync(dir, 0o700);
+}
 
-loadDotEnv(join(ROOT, ".env"));
+/** The agent's profile ("about me") and memory, loaded into every conversation as instructions. */
+export const PROFILE_FILE = join(DATA_DIR, "profile.md");
+export const MEMORY_FILE = join(DATA_DIR, "memory.md");
+if (!existsSync(PROFILE_FILE)) copyFileSync(join(ROOT, "agent/profile.template.md"), PROFILE_FILE);
+if (!existsSync(MEMORY_FILE)) writeFileSync(MEMORY_FILE, "# Memory\n\nThings the agent has been asked to remember.\n\n");
+for (const f of [PROFILE_FILE, MEMORY_FILE]) chmodSync(f, 0o600);
 
 /** Minimal .env loader so launchd/`npm start` behave the same without extra deps. */
 function loadDotEnv(file: string) {
@@ -48,6 +61,10 @@ export const config = {
   /** Default model as provider/model, e.g. opencode/nemotron-3-ultra-free or ollama/qwen3-coder. */
   defaultModel: env.LAZYLINK_MODEL ?? "",
   sessionSecret: persistentSecret("session.secret"),
+  /** Bearer token opencode uses to reach lazylink's own MCP server at /mcp. */
+  mcpToken: persistentSecret("mcp.secret"),
+  /** How long share_file download links stay valid. */
+  shareTtlMs: Number(env.LAZYLINK_SHARE_TTL_HOURS ?? 24) * 60 * 60 * 1000,
 
   opencode: {
     bin: env.OPENCODE_BIN ?? (existsSync(join(HOME, ".opencode/bin/opencode")) ? join(HOME, ".opencode/bin/opencode") : "opencode"),

@@ -187,3 +187,20 @@ export function mediaUrls(text: string | undefined): string[] {
   if (!text) return [];
   return [...new Set([...text.matchAll(MEDIA_RE)].map((m) => `/media/${m[1]}`))];
 }
+
+const FILE_RE = /\/files\/([\w-]{16,})\/([^\s"'`)\]]+)/g;
+
+/** Download links created by the agent's share_file tool. */
+export function fileLinks(text: string | undefined): { url: string; name: string }[] {
+  if (!text) return [];
+  const seen = new Map<string, { url: string; name: string }>();
+  for (const m of text.matchAll(FILE_RE)) {
+    const url = `/files/${m[1]}/${m[2]}`;
+    let name = m[2];
+    try {
+      name = decodeURIComponent(m[2]);
+    } catch {}
+    seen.set(m[1], { url, name });
+  }
+  return [...seen.values()];
+}
