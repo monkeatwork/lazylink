@@ -64,3 +64,15 @@
   - Only models that support `/chat/completions` work through this provider (not the `/responses`-only GPT-5.6/6 Luna).
   - The Mac's sleep setting can still take lazylink offline.
 - **Next:** Check whether a newer opencode fixes the built-in Copilot provider and drop the workaround if so. Then install the PWA and test push on the phone.
+
+## 2026-10-25 — Fix download cards saving an HTML page
+- **What:**
+  - The file-link regex in `transcript.ts` now stops at backslashes.
+  - `/files/:token/*` now serves the file by token alone, whatever follows it in the path.
+- **Why:** MCP tool output arrives JSON-encoded, so a share link was followed by a literal `\n`. The card's URL became `…/PM.png\nExpires:`, and the browser turned `\` into `/`. That URL didn't match the download route, so the SPA fallback returned `index.html`, which the phone saved as the "download".
+- **Files:** apps/web/src/transcript.ts, apps/server/src/index.ts
+- **Verified:**
+  - The regex extracts the correct name from the real tool output.
+  - With a login, both the clean URL and the old broken one return the PNG (200).
+- **Known issues:** Cards already in old chats use the broken URL, but they now download correctly too.
+- **Next:** Install the PWA and test push on the phone.

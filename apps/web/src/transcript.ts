@@ -188,7 +188,8 @@ export function mediaUrls(text: string | undefined): string[] {
   return [...new Set([...text.matchAll(MEDIA_RE)].map((m) => `/media/${m[1]}`))];
 }
 
-const FILE_RE = /\/files\/([\w-]{16,})\/([^\s"'`)\]]+)/g;
+// Tool output is often JSON-encoded, so a link can be followed by a literal "\n"; stop at backslashes.
+const FILE_RE = /\/files\/([\w-]{16,})\/([^\s"'`)\]\\]+)/g;
 
 /** Download links created by the agent's share_file tool. */
 export function fileLinks(text: string | undefined): { url: string; name: string }[] {

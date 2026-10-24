@@ -355,7 +355,8 @@ app.all("/mcp", async (c) => {
 app.post("/share", (c) => c.redirect("/?shared=1", 303));
 
 // Download links made by share_file. Still behind login, and they expire.
-app.get("/files/:token/:name", requireAuth, async (c) => {
+// Only the token matters; the rest of the path is just the file name for the browser.
+app.get("/files/:token/*", requireAuth, async (c) => {
   const share = getShare(c.req.param("token") ?? "");
   if (!share) return c.json({ error: "link not found" }, 404);
   if (share.expires < Date.now()) return c.json({ error: "this link has expired; ask your Mac to share it again" }, 410);
