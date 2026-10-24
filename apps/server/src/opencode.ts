@@ -4,6 +4,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { chmodSync, createWriteStream, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { config, DATA_DIR, HOME, MEDIA_DIR, ROOT } from "./config.ts";
 
 export type OpencodeEvent = { id: string; type: string; created?: number; data: any };
@@ -34,22 +35,49 @@ export async function oc<T = any>(path: string, init: { method?: string; body?: 
 }
 
 /** Builds the opencode config lazylink runs with, from opencode.jsonc (or the example) in the repo. */
+/**
+ * The GitHub Copilot token from `opencode auth login`, read from opencode's own database.
+ * opencode 2.0.15's built-in Copilot provider loses its models after the first prompt, so the
+ * config talks to the Copilot API directly with this token instead.
+ */
+/** Whether the running opencode was given a Copilot token; without one its models can't work. */
+export let copilotEnabled = false;
+
+function copilotToken(): string | undefined {
+  const file = join(process.env.XDG_DATA_HOME || join(HOME, ".local", "share"), "opencode", "opencode.db");
+  if (!existsSync(file)) return undefined;
+  try {
+    const db = new DatabaseSync(file, { readOnly: true });
+    const row = db.prepare("SELECT value FROM credential WHERE integration_id = 'github-copilot' AND active = 1").get() as
+      | { value: string }
+      | undefined;
+    db.close();
+    return row ? (JSON.parse(row.value).access as string) || undefined : undefined;
+  } catch (err) {
+    console.error("[opencode] could not read the Copilot login:", (err as Error).message);
+    return undefined;
+  }
+}
+
 function writeOpencodeConfig(): string {
   const source = [join(ROOT, "opencode.jsonc"), join(ROOT, "opencode.example.jsonc")].find(existsSync);
   if (!source) throw new Error("No opencode.jsonc or opencode.example.jsonc found in the repo root.");
+  const copilot = copilotToken();
+  copilotEnabled = Boolean(copilot);
   const vars: Record<string, string> = {
     LAZYLINK_ROOT: ROOT,
     LAZYLINK_MEDIA_DIR: MEDIA_DIR,
     LAZYLINK_DATA_DIR: DATA_DIR,
     LAZYLINK_PORT: String(config.port),
     LAZYLINK_MCP_TOKEN: config.mcpToken,
+    COPILOT_TOKEN: copilot ?? "",
     HOME,
     CHROME_PORT: String(config.chrome.port),
   };
   const rendered = readFileSync(source, "utf8").replace(/\$\{(\w+)\}/g, (m, name) => vars[name] ?? m);
   const target = join(DATA_DIR, "opencode.jsonc");
   writeFileSync(target, rendered, { mode: 0o600 });
-  chmodSync(target, 0o600); // contains the MCP bearer token
+  chmodSync(target, 0o600); // contains the MCP bearer token and the Copilot token
   return target;
 }
 

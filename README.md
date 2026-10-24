@@ -58,6 +58,7 @@ Use the model picker in the app, or set `LAZYLINK_MODEL=provider/model` in `.env
 
 - **Free, no setup:** opencode's free models (marked "Free" in the picker). Availability changes, and a free model can be overloaded at times. opencode retries automatically.
 - **Free, local, private:** run Ollama, then uncomment the `providers.ollama` block in `opencode.jsonc`. Pick a model that supports tool calling. Small models struggle with multi-step tasks.
+- **GitHub Copilot (free for students, or Copilot Pro):** run `opencode auth login`, choose GitHub Copilot and sign in to the account that has Copilot. Then restart lazylink. GPT-4.1, Claude Haiku 4.5 and Kimi K3 appear as "(Copilot)" in the picker, and GPT-4.1 doesn't use premium requests. lazylink calls the Copilot API directly with that login (see `providers.copilot` in `opencode.jsonc`), because opencode 2.0.15's built-in Copilot provider loses its models after the first prompt. Enable models at github.com/settings/copilot. Any model you add to that block must support `/chat/completions`.
 - **Paid:** add a key with `opencode auth login` (or in `~/.config/opencode`), and those models start working in the picker.
 
 Tool-calling quality matters more than raw intelligence here. If an agent loops or ignores tools, try a different model.

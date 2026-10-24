@@ -1,6 +1,6 @@
 // lazylink's opencode config. Copy to opencode.jsonc to customise (setup.sh does this for you).
 // lazylink renders ${LAZYLINK_ROOT}, ${LAZYLINK_DATA_DIR}, ${LAZYLINK_MEDIA_DIR}, ${LAZYLINK_PORT},
-// ${LAZYLINK_MCP_TOKEN}, ${HOME} and ${CHROME_PORT} at startup and
+// ${LAZYLINK_MCP_TOKEN}, ${COPILOT_TOKEN}, ${HOME} and ${CHROME_PORT} at startup and
 // passes the result to `opencode serve` via OPENCODE_CONFIG. It is merged with ~/.config/opencode.
 {
   "$schema": "https://opencode.ai/config.json",
@@ -18,6 +18,30 @@
   //     "models": { "qwen3-coder:30b": { "name": "Qwen3 Coder 30B" } }
   //   }
   // },
+
+  // GitHub Copilot, using the login from `opencode auth login` -> GitHub Copilot.
+  // opencode 2.0.15's built-in Copilot provider drops its models after the first prompt, so lazylink
+  // talks to the Copilot API directly with that login's token (rendered as ${COPILOT_TOKEN}; models
+  // are hidden in the app when you're not logged in). Only models enabled at
+  // github.com/settings/copilot that support /chat/completions work here.
+  // GPT-4.1 doesn't use premium requests; the others may.
+  "providers": {
+    "copilot": {
+      "name": "GitHub Copilot",
+      "package": "@ai-sdk/openai-compatible",
+      "settings": { "baseURL": "https://api.githubcopilot.com" },
+      "headers": {
+        "Authorization": "Bearer ${COPILOT_TOKEN}",
+        "Copilot-Integration-Id": "vscode-chat",
+        "Editor-Version": "vscode/1.99.0"
+      },
+      "models": {
+        "gpt-4.1": { "name": "GPT-4.1 (Copilot)" },
+        "claude-haiku-4.5": { "name": "Claude Haiku 4.5 (Copilot)" },
+        "kimi-k3": { "name": "Kimi K3 (Copilot)" }
+      }
+    }
+  },
 
   // What the agent knows about this setup: the lazylink manual, your profile, and its memory.
   // Edit your profile and memory in the app (Settings).

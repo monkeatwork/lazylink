@@ -10,7 +10,7 @@ import { authStatus, login, logout, requireAuth, tailscaleUser } from "./auth.ts
 import { chromeStatus, startChrome } from "./chrome.ts";
 import { config, HOME, INBOX_DIR, MEDIA_DIR, MEMORY_FILE, PROFILE_FILE, ROOT } from "./config.ts";
 import { handleMcp, inboxNote } from "./mcp.ts";
-import { oc, OpencodeError, opencodeHealthy, setSessionContext, startOpencode, subscribeEvents, type OpencodeEvent } from "./opencode.ts";
+import { copilotEnabled, oc, OpencodeError, opencodeHealthy, setSessionContext, startOpencode, subscribeEvents, type OpencodeEvent } from "./opencode.ts";
 import { markVisible, push, subscribe as pushSubscribe, subscriptionCount, unsubscribe as pushUnsubscribe, vapidPublicKey } from "./push.ts";
 import { keepAwakeOn, QUICK_ACTIONS } from "./quick.ts";
 import { countDownload, getShare, pruneShares } from "./shares.ts";
@@ -91,7 +91,7 @@ const LOCAL_PROVIDERS = new Set(["ollama", "lmstudio", "llamacpp", "llama.cpp"])
 async function listModels() {
   const { data } = await oc<{ data: any[] }>("/api/model");
   return data
-    .filter((m) => m.capabilities?.tools !== false)
+    .filter((m) => m.capabilities?.tools !== false && (m.providerID !== "copilot" || copilotEnabled))
     .map((m) => {
       const costs: any[] = Array.isArray(m.cost) ? m.cost : [];
       const local = LOCAL_PROVIDERS.has(m.providerID);

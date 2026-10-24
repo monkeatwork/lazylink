@@ -48,3 +48,19 @@
   - Screenshots need the Screen Recording permission on the Mac.
   - Shared text from other apps prefills the composer, but shared files only arrive once the service worker is active (after the first open of the installed app).
 - **Next:** Install as an app on the phone, enable notifications and run the test push. Later: TWA/Capacitor APK, browser screenshots in chat, a web terminal, scheduled tasks.
+
+## 2026-10-25 — Runs 24/7; GitHub Copilot models
+- **What:**
+  - lazylink now runs permanently as the launchd agent `com.lazylink.server` (`scripts/install-launchd.sh`: starts at login, restarts if it crashes) rather than on a 1-hour timer.
+  - New `copilot` provider in `opencode.jsonc`. It calls `https://api.githubcopilot.com` directly with the token from `opencode auth login` -> GitHub Copilot, which the server reads from opencode's database and renders into the 0600 config as `${COPILOT_TOKEN}`. Models: GPT-4.1 (the default via `LAZYLINK_MODEL=copilot/gpt-4.1`), Claude Haiku 4.5 and Kimi K3. The app hides them when there's no Copilot login.
+- **Why:**
+  - lazylink is the always-on way into the Mac.
+  - opencode's free models hit "Free usage limit reached".
+  - opencode 2.0.15's built-in `github-copilot` provider lists no models for this account, because Copilot reports `model_picker_enabled: false`. The first prompt works, and afterwards every prompt fails with `ModelUnavailableError`. This was reproduced on a bare `opencode serve` with no lazylink config.
+- **Files:** apps/server/src/{opencode,index}.ts, opencode.example.jsonc, README.md
+- **Verified:** Two new conversations in a row on `copilot/gpt-4.1` ran `read` and `shell` tools and answered correctly. A minimal-config test server stayed working across repeated prompts.
+- **Known issues:**
+  - After logging in to Copilot again, restart the service: the token is read at startup.
+  - Only models that support `/chat/completions` work through this provider (not the `/responses`-only GPT-5.6/6 Luna).
+  - The Mac's sleep setting can still take lazylink offline.
+- **Next:** Check whether a newer opencode fixes the built-in Copilot provider and drop the workaround if so. Then install the PWA and test push on the phone.
