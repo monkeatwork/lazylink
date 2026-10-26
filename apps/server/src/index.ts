@@ -12,6 +12,7 @@ import { config, HOME, INBOX_DIR, MEDIA_DIR, MEMORY_FILE, PROFILE_FILE, ROOT } f
 import { handleMcp, inboxNote } from "./mcp.ts";
 import { copilotEnabled, oc, OpencodeError, opencodeHealthy, setSessionContext, startOpencode, subscribeEvents, type OpencodeEvent } from "./opencode.ts";
 import { markVisible, push, subscribe as pushSubscribe, subscriptionCount, unsubscribe as pushUnsubscribe, vapidPublicKey } from "./push.ts";
+import { listClaudeProjects, listClaudeSessions, startClaude, type StartClaude } from "./claude.ts";
 import { keepAwakeOn, QUICK_ACTIONS } from "./quick.ts";
 import { countDownload, getShare, pruneShares } from "./shares.ts";
 
@@ -325,6 +326,25 @@ api.post("/quick/:action", async (c) => {
   } catch (err) {
     audit(`quick.${action}`, null, { arg, error: (err as Error).message }, tailscaleUser(c) ?? "local");
     return c.json({ error: (err as Error).message }, 500);
+  }
+});
+
+// ----- Claude Code sessions with Remote Control -----
+
+api.get("/claude", (c) => {
+  const dir = c.req.query("dir");
+  return c.json({ projects: listClaudeProjects(), sessions: listClaudeSessions(dir || undefined) });
+});
+
+api.post("/claude/start", async (c) => {
+  const body = await c.req.json<StartClaude>();
+  try {
+    const result = await startClaude(body);
+    audit("claude.started", null, { dir: result.dir, mode: body.mode, sessionId: body.sessionId, where: result.where }, tailscaleUser(c) ?? "local");
+    return c.json(result);
+  } catch (err) {
+    audit("claude.started", null, { dir: body.dir, mode: body.mode, error: (err as Error).message }, tailscaleUser(c) ?? "local");
+    return c.json({ error: (err as Error).message }, 400);
   }
 });
 

@@ -76,3 +76,22 @@
   - With a login, both the clean URL and the old broken one return the PNG (200).
 - **Known issues:** Cards already in old chats use the broken URL, but they now download correctly too.
 - **Next:** Install the PWA and test push on the phone.
+
+## 2026-10-26 — Claude Code launcher with Remote Control
+- **What:**
+  - A new "Claude Code" quick action:
+    - pick a folder by typing it or tapping a recent project (from `~/.claude/projects`)
+    - then choose **New session** (creates the folder if needed), **Continue latest**, or **Resume** one of that folder's sessions
+  - The session opens with `wezterm cli spawn … claude --remote-control [--continue | --resume <id>]` in a login shell. If WezTerm isn't running, `wezterm start` opens it; if WezTerm isn't installed, it falls back to Terminal.app.
+  - Sessions already open on the Mac (from `~/.claude/sessions/*.json`) are marked and can't be resumed twice.
+  - New MCP tools `lazylink_start_claude` and `lazylink_list_claude_sessions` (both allowed), plus a line in the agent manual telling it to use them instead of typing into terminals.
+- **Why:** Starting `claude`/`claude --resume` with `/rc` from the phone was a frequent multi-step job. GPT-4.1 refused to do it, and DeepSeek did it by typing keystrokes into WezTerm.
+- **Files:** apps/server/src/{claude,index,mcp}.ts, apps/web/src/{api.ts,App.tsx,styles.css}, apps/web/src/components/{ClaudeLauncher,QuickActions}.tsx, agent/LAZYLINK.md, opencode.example.jsonc, README.md
+- **Verified:**
+  - The listing API returns 12 projects and this folder's sessions, with the open one marked, in about 0.1 s.
+  - A real launch in a new folder opened a WezTerm tab. After the trust prompt was answered, it showed "/remote-control is active".
+  - UI checked at 390×844.
+- **Known issues:**
+  - In a folder Claude Code hasn't opened before, the session waits at the "trust this folder" prompt, whose default is "No, exit". Answering it automatically was blocked as weakening a security control, so it's left to the user. The app warns when this will happen.
+  - Session titles come from Claude's AI title or the first prompt, unless the session is open (then its live name).
+- **Next:** Decide how to handle the trust prompt (trust a parent folder once, or a phone button that answers it on request).

@@ -6,6 +6,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { z } from "zod";
 import { audit } from "./audit.ts";
+import { listClaudeSessions, startClaude } from "./claude.ts";
 import { INBOX_DIR, MEMORY_FILE } from "./config.ts";
 import { push } from "./push.ts";
 import { createShare, shareUrl } from "./shares.ts";
@@ -112,6 +113,48 @@ function buildServer() {
       const sent = await push({ title, body, tag: "agent" }, { force: true });
       audit("push.agent", null, { title, body, sent }, "agent");
       return text(sent ? "Notification sent." : "The user hasn't enabled notifications on any device yet.");
+    },
+  );
+
+  server.registerTool(
+    "start_claude",
+    {
+      description:
+        "Open Claude Code on the Mac in a terminal tab with Remote Control on, so the user can drive it from the Claude app. " +
+        "Use this whenever the user asks to start, run, continue or resume `claude` somewhere. Don't type into terminals yourself. " +
+        "mode: new = fresh session, continue = the latest session in that folder, resume = a specific session (get ids from list_claude_sessions).",
+      inputSchema: {
+        dir: z.string().describe("Folder, absolute or relative to ~ (e.g. projects/lazylink)"),
+        mode: z.enum(["new", "continue", "resume"]).default("new"),
+        session_id: z.string().optional(),
+        create: z.boolean().optional().describe("Create the folder if it doesn't exist (mkdir -p)"),
+      },
+    },
+    async ({ dir, mode, session_id, create }) => {
+      try {
+        const result = await startClaude({ dir, mode, sessionId: session_id, create });
+        audit("claude.started", null, { dir: result.dir, mode, sessionId: session_id, where: result.where }, "agent");
+        return text(result.text);
+      } catch (err) {
+        return fail(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "list_claude_sessions",
+    {
+      description: "Recent Claude Code sessions on the Mac (newest first), optionally only those in one folder. Shows which are open right now.",
+      inputSchema: { dir: z.string().optional().describe("Absolute folder path to filter by") },
+    },
+    async ({ dir }) => {
+      const sessions = listClaudeSessions(dir);
+      if (!sessions.length) return text("No Claude Code sessions found.");
+      return text(
+        sessions
+          .map((s) => `${s.id}  ${s.running ? "[open] " : ""}${s.title}  (${s.dir}, ${new Date(s.updated).toLocaleString()})`)
+          .join("\n"),
+      );
     },
   );
 

@@ -50,6 +50,7 @@ The model is told how lazylink works, so it doesn't assume you're sitting at the
 - **Files to your Mac:** 📎 in the composer, or **Share → lazylink** from any Android app. Files land in `~/lazylink-inbox/<date>/`, and the agent is told the paths.
 - **Notifications:** Settings → Notifications → Turn on. You get a push when the agent needs an approval or finishes or fails a task while the app isn't on screen. The agent can also ping you with `notify_phone`.
 - **Quick actions (⚡):** screenshot, status, lock, play/pause, volume, keep-awake. They run instantly, with no AI and no cost.
+- **Claude Code launcher (⚡ → Claude Code):** pick a folder (recent projects are one tap), then start a new session, continue the latest, or resume a past one. It opens in a WezTerm tab on the Mac (Terminal.app if WezTerm isn't installed) with `claude --remote-control`, so you can drive it from the Claude app or claude.ai/code. Sessions that are already open are marked and can't be resumed twice. The agent can do the same with `lazylink_start_claude`. In a folder Claude Code hasn't opened before, it first asks in the terminal whether to trust the folder.
 - **Activity:** a timeline of every prompt, command, approval, file transfer and quick action, with filters. It updates live.
 
 ## Models

@@ -113,6 +113,8 @@
     { "action": "lazylink_remember", "resource": "*", "effect": "allow" },
     { "action": "lazylink_forget", "resource": "*", "effect": "allow" },
     { "action": "lazylink_notify_phone", "resource": "*", "effect": "allow" },
+    { "action": "lazylink_start_claude", "resource": "*", "effect": "allow" },
+    { "action": "lazylink_list_claude_sessions", "resource": "*", "effect": "allow" },
     { "action": "external_directory", "resource": "${HOME}/lazylink-inbox/*", "effect": "allow" },
 
     // Browser: looking is free, clicking/typing asks.

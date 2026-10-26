@@ -431,6 +431,7 @@ export function App() {
       <QuickActions
         open={quickOpen}
         keepAwake={!!status?.keepAwake}
+        home={status?.workdir}
         onClose={() => setQuickOpen(false)}
         onKeepAwake={(on) => setStatus((s) => (s ? { ...s, keepAwake: on } : s))}
         onError={flash}

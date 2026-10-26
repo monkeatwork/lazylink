@@ -283,6 +283,24 @@ pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
 .quick-shot img { width: 100%; margin-top: 12px; border-radius: 10px; border: 1px solid var(--border); display: block; }
 .quick-text { margin-top: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px; max-height: 240px; overflow: auto; }
 
+.quick-text { white-space: pre-wrap; }
+.claude-launcher { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.claude-dir {
+  width: 100%; padding: 10px 12px; background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 10px; font-size: 14px;
+}
+.claude-projects { display: flex; flex-wrap: wrap; gap: 6px; }
+.claude-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.claude-h { margin: 6px 0 0; font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.claude-sessions { display: flex; flex-direction: column; gap: 6px; max-height: 40vh; overflow: auto; }
+.claude-session {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: left;
+  padding: 10px 12px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; color: var(--text);
+}
+.claude-session:disabled { opacity: .55; }
+.claude-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.claude-session .tiny { flex-shrink: 0; }
+
 /* ---------- settings ---------- */
 .settings-section { padding: 14px 0; border-top: 1px solid var(--border); }
 .settings-section:first-child { border-top: 0; padding-top: 6px; }
