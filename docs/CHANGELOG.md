@@ -108,3 +108,10 @@
   - The full UI flow at 390×844: launch, Trust card, tap, Remote Control card, and the "already open" notice.
 - **Known issues:** Status tracking and the Trust button need WezTerm; the Terminal.app fallback has neither.
 - **Next:** Look at Hermes Agent ideas (messaging gateways, skills, cron).
+
+## 2026-10-26 — Repo made public
+- **What:** `monkeatwork/lazylink` switched from private to public, for a LinkedIn post series (kept in a separate vault, `~/projects/lazylink-linkedin`).
+- **Why:** Sharing the project.
+- **Checked first:** The full git history has no passcode, tokens, keys, email or Tailscale hostname. `.env` and `opencode.jsonc` were never committed, and commits use a GitHub noreply address.
+- **Files:** docs/CHANGELOG.md
+- **Next:** Hermes Agent trial with lazylink's MCP servers.
