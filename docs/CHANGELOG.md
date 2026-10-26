@@ -115,3 +115,10 @@
 - **Checked first:** The full git history has no passcode, tokens, keys, email or Tailscale hostname. `.env` and `opencode.jsonc` were never committed, and commits use a GitHub noreply address.
 - **Files:** docs/CHANGELOG.md
 - **Next:** Hermes Agent trial with lazylink's MCP servers.
+
+## 2026-10-26 Project context brief
+- **What:** added `docs/PROJECT_CONTEXT.md`, a one-page brief of what lazylink is, what it can do, how it's wired, the hard rules and the direction.
+- **Why:** to hand to another agent or collaborator as a starting point.
+- **Files:** `docs/PROJECT_CONTEXT.md`, `docs/CHANGELOG.md`
+- **Known issues:** none.
+- **Next:** keep it updated as the Hermes integration lands.
