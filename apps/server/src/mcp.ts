@@ -6,7 +6,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { z } from "zod";
 import { audit } from "./audit.ts";
-import { listClaudeSessions, startClaude } from "./claude.ts";
+import { listClaudeSessions, paneState, startClaude } from "./claude.ts";
 import { INBOX_DIR, MEMORY_FILE } from "./config.ts";
 import { push } from "./push.ts";
 import { createShare, shareUrl } from "./shares.ts";
@@ -134,7 +134,16 @@ function buildServer() {
       try {
         const result = await startClaude({ dir, mode, sessionId: session_id, create });
         audit("claude.started", null, { dir: result.dir, mode, sessionId: session_id, where: result.where }, "agent");
-        return text(result.text);
+        let state = "starting";
+        for (let i = 0; i < 10 && result.pane && state === "starting"; i++) {
+          await new Promise((r) => setTimeout(r, 500));
+          state = await paneState(result.pane);
+        }
+        return text(
+          state === "trust"
+            ? `${result.text}\nIt's waiting at Claude Code's "trust this folder" prompt. Only the user can answer it: tell them to tap "Trust this folder" under ⚡ → Claude Code in the app.`
+            : result.text,
+        );
       } catch (err) {
         return fail(err);
       }
@@ -152,7 +161,10 @@ function buildServer() {
       if (!sessions.length) return text("No Claude Code sessions found.");
       return text(
         sessions
-          .map((s) => `${s.id}  ${s.running ? "[open] " : ""}${s.title}  (${s.dir}, ${new Date(s.updated).toLocaleString()})`)
+          .map(
+            (s) =>
+              `${s.id}  ${s.running ? (s.remote ? "[open, Remote Control on] " : "[open, no Remote Control] ") : ""}${s.title}  (${s.dir}, ${new Date(s.updated).toLocaleString()})`,
+          )
           .join("\n"),
       );
     },

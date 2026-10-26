@@ -95,3 +95,16 @@
   - In a folder Claude Code hasn't opened before, the session waits at the "trust this folder" prompt, whose default is "No, exit". Answering it automatically was blocked as weakening a security control, so it's left to the user. The app warns when this will happen.
   - Session titles come from Claude's AI title or the first prompt, unless the session is open (then its live name).
 - **Next:** Decide how to handle the trust prompt (trust a parent folder once, or a phone button that answers it on request).
+
+## 2026-10-26 — Trust button and "already open" detection for the Claude Code launcher
+- **What:**
+  - **Trust this folder.** After a launch, the phone follows the tab (`GET /api/claude/pane/:pane`). When Claude Code asks whether to trust the folder, the phone shows a "Trust this folder" button. Tapping it (`POST /api/claude/pane/:pane/trust`) sends Down + Enter, which picks "Yes" (the default is "No, exit"). The server only sends the keys if that prompt is on screen, and audits it as `claude.trusted`. Tabs already waiting at the prompt, such as ones the agent opened, also appear with the button. The agent's `start_claude` tool tells the user to tap it rather than answering the prompt itself.
+  - **Already open.** Continue and Resume check `~/.claude/sessions/*.json`. If the target session is running, they refuse with HTTP 409 and say whether Remote Control is on: "open it from the Claude app" if it is, "type /rc at the Mac or quit it" if not. Open sessions in the list show "open · Remote Control on/off", and Continue reads "Latest is open".
+- **Why:** The launcher said it was turning Remote Control on even when the session was already running, and it opened a second copy. One session (pulseguard) was found running in two processes. New folders got stuck at the trust prompt.
+- **Files:** apps/server/src/{claude,index,mcp}.ts, apps/web/src/{api.ts,styles.css}, apps/web/src/components/{ClaudeLauncher,QuickActions}.tsx
+- **Verified:**
+  - Continue on lazylink (open, Remote Control on) returns 409 with the right message.
+  - New folder: the state goes to `trust`, the tab is listed as pending, the Trust endpoint returns `ready`, and the tab shows "/remote-control is active". Trust on a tab with no prompt returns 409.
+  - The full UI flow at 390×844: launch, Trust card, tap, Remote Control card, and the "already open" notice.
+- **Known issues:** Status tracking and the Trust button need WezTerm; the Terminal.app fallback has neither.
+- **Next:** Look at Hermes Agent ideas (messaging gateways, skills, cron).

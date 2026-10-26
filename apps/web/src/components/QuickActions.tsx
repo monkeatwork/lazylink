@@ -59,14 +59,7 @@ export function QuickActions({
           <button className="link-btn" onClick={() => setView("tiles")}>
             ← Quick actions
           </button>
-          <ClaudeLauncher
-            home={home}
-            onError={onError}
-            onDone={(text) => {
-              setResult({ text });
-              setView("tiles");
-            }}
-          />
+          <ClaudeLauncher home={home} onError={onError} />
         </>
       ) : (
         <>

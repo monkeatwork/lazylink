@@ -298,6 +298,16 @@ pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
   padding: 10px 12px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; color: var(--text);
 }
 .claude-session:disabled { opacity: .55; }
+.claude-session.open { border-style: dashed; }
+.rc-on { color: var(--accent); }
+.rc-off { color: var(--warn); }
+.claude-status {
+  display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; font-size: 13px; line-height: 1.45;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
+}
+.claude-status.good { border-color: #1f4d2b; background: #0c1a10; }
+.claude-status.warn { border-color: #5a4512; background: #1f1806; }
+.claude-status .btn { align-self: flex-start; }
 .claude-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .claude-session .tiny { flex-shrink: 0; }
 

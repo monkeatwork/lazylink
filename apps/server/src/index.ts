@@ -12,7 +12,16 @@ import { config, HOME, INBOX_DIR, MEDIA_DIR, MEMORY_FILE, PROFILE_FILE, ROOT } f
 import { handleMcp, inboxNote } from "./mcp.ts";
 import { copilotEnabled, oc, OpencodeError, opencodeHealthy, setSessionContext, startOpencode, subscribeEvents, type OpencodeEvent } from "./opencode.ts";
 import { markVisible, push, subscribe as pushSubscribe, subscriptionCount, unsubscribe as pushUnsubscribe, vapidPublicKey } from "./push.ts";
-import { listClaudeProjects, listClaudeSessions, startClaude, type StartClaude } from "./claude.ts";
+import {
+  AlreadyOpen,
+  listClaudeProjects,
+  listClaudeSessions,
+  paneState,
+  pendingTrust,
+  startClaude,
+  trustFolder,
+  type StartClaude,
+} from "./claude.ts";
 import { keepAwakeOn, QUICK_ACTIONS } from "./quick.ts";
 import { countDownload, getShare, pruneShares } from "./shares.ts";
 
@@ -331,9 +340,13 @@ api.post("/quick/:action", async (c) => {
 
 // ----- Claude Code sessions with Remote Control -----
 
-api.get("/claude", (c) => {
+api.get("/claude", async (c) => {
   const dir = c.req.query("dir");
-  return c.json({ projects: listClaudeProjects(), sessions: listClaudeSessions(dir || undefined) });
+  return c.json({
+    projects: listClaudeProjects(),
+    sessions: listClaudeSessions(dir || undefined),
+    ...(c.req.query("pending") && { pending: await pendingTrust() }),
+  });
 });
 
 api.post("/claude/start", async (c) => {
@@ -344,7 +357,21 @@ api.post("/claude/start", async (c) => {
     return c.json(result);
   } catch (err) {
     audit("claude.started", null, { dir: body.dir, mode: body.mode, error: (err as Error).message }, tailscaleUser(c) ?? "local");
+    if (err instanceof AlreadyOpen) return c.json({ error: err.message, alreadyOpen: err.session }, 409);
     return c.json({ error: (err as Error).message }, 400);
+  }
+});
+
+api.get("/claude/pane/:pane", async (c) => c.json({ state: await paneState(c.req.param("pane")) }));
+
+// Answers Claude Code's "trust this folder?" prompt, only when the user taps the button for it.
+api.post("/claude/pane/:pane/trust", async (c) => {
+  try {
+    const state = await trustFolder(c.req.param("pane"));
+    audit("claude.trusted", null, { pane: c.req.param("pane"), state }, tailscaleUser(c) ?? "local");
+    return c.json({ state });
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 409);
   }
 });
 

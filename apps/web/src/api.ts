@@ -31,7 +31,8 @@ export type Status = {
 export type AuditEntry = { id: number; ts: number; kind: string; sessionId: string | null; actor: string | null; detail: any };
 export type Uploaded = { path: string; name: string; size: number };
 export type QuickResult = { text?: string; url?: string; keepAwake?: boolean; error?: string };
-export type ClaudeSession = { id: string; dir: string; title: string; updated: number; running: boolean };
+export type ClaudeSession = { id: string; dir: string; title: string; updated: number; running: boolean; remote: boolean };
+export type ClaudePaneState = "starting" | "trust" | "ready" | "gone";
 export type ClaudeProject = { dir: string; updated: number; sessions: number };
 export type ClaudeStart = { dir: string; mode: "new" | "continue" | "resume"; sessionId?: string; create?: boolean };
 
@@ -90,9 +91,15 @@ export const api = {
   getContext: (which: "profile" | "memory") => req<{ text: string }>(`/api/context/${which}`),
   putContext: (which: "profile" | "memory", text: string) => req(`/api/context/${which}`, { method: "PUT", body: { text } }),
   quick: (action: string, arg?: string) => req<QuickResult>(`/api/quick/${action}`, { body: { arg } }),
-  claude: (dir?: string) =>
-    req<{ projects: ClaudeProject[]; sessions: ClaudeSession[] }>(`/api/claude${dir ? `?dir=${encodeURIComponent(dir)}` : ""}`),
-  startClaude: (body: ClaudeStart) => req<{ dir: string; text: string }>("/api/claude/start", { body }),
+  claude: (q: { dir?: string; pending?: boolean } = {}) => {
+    const p = new URLSearchParams();
+    if (q.dir) p.set("dir", q.dir);
+    if (q.pending) p.set("pending", "1");
+    return req<{ projects: ClaudeProject[]; sessions: ClaudeSession[]; pending?: { pane: string; dir: string }[] }>(`/api/claude?${p}`);
+  },
+  startClaude: (body: ClaudeStart) => req<{ dir: string; text: string; pane?: string }>("/api/claude/start", { body }),
+  claudePane: (pane: string) => req<{ state: ClaudePaneState }>(`/api/claude/pane/${pane}`),
+  trustClaudeFolder: (pane: string) => req<{ state: ClaudePaneState }>(`/api/claude/pane/${pane}/trust`, { method: "POST" }),
   pushKey: () => req<{ key: string; subscriptions: number }>("/api/push/key"),
   pushSubscribe: (sub: PushSubscriptionJSON) => req("/api/push/subscribe", { body: sub }),
   pushUnsubscribe: (endpoint: string) => req("/api/push/unsubscribe", { body: { endpoint } }),
